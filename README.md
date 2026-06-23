@@ -1,1 +1,701 @@
-# FRH-MENU-FREE
+# FRH-MENU-FREE -- =============================================================================
+-- PAINEL FRH MENU - VERSÃO COMPLETA (SEM HIGHLIGHT ESP)
+-- =============================================================================
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- Configurações Globais
+local CheatSettings = {
+	MenuVisible = true,
+	AimbotEnabled = false,
+	FovEnabled = false,
+	FovRadius = 100,
+	Smoothness = 10,
+	TeamCheck = false,
+	WallCheck = false,
+	Whitelist = {},
+	ESPBox = true,
+	ESPName = true,
+	ESPDistance = true
+}
+
+-- Variáveis para controle do Aimbot
+local isAiming = false
+local aimbotConnection = nil
+
+-- Criando a ScreenGui
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "FRHMenuGui_Final"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+local success, coreGui = pcall(function() return game:GetService("CoreGui") end)
+ScreenGui.Parent = success and coreGui or LocalPlayer:WaitForChild("PlayerGui")
+
+-- Painel Principal
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 700, 0, 540)
+MainFrame.Position = UDim2.new(0.5, -350, 0.5, -270)
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 16, 24)
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true 
+MainFrame.Parent = ScreenGui
+
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 8)
+MainCorner.Parent = MainFrame
+
+-- Título
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Size = UDim2.new(0, 200, 0, 40)
+TitleLabel.Position = UDim2.new(1, -220, 0, 10)
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.Text = "FRH MENU"
+TitleLabel.TextColor3 = Color3.fromRGB(168, 85, 247)
+TitleLabel.TextSize = 22
+TitleLabel.Font = Enum.Font.GothamBold
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Right
+TitleLabel.Parent = MainFrame
+
+-- =============================================================================
+-- GERENCIADOR DE ABAS
+-- =============================================================================
+local TabsContainer = Instance.new("Frame")
+TabsContainer.Size = UDim2.new(0, 300, 0, 35)
+TabsContainer.Position = UDim2.new(0, 30, 0, 50)
+TabsContainer.BackgroundTransparency = 1
+TabsContainer.Parent = MainFrame
+
+local UIListLayout = Instance.new("UIListLayout")
+UIListLayout.FillDirection = Enum.FillDirection.Horizontal
+UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+UIListLayout.Padding = UDim.new(0, 8)
+UIListLayout.Parent = TabsContainer
+
+local PagesContainer = Instance.new("Frame")
+PagesContainer.Size = UDim2.new(0, 640, 0, 390)
+PagesContainer.Position = UDim2.new(0, 30, 0, 95)
+PagesContainer.BackgroundTransparency = 1
+PagesContainer.Parent = MainFrame
+
+local pages = {}
+
+local function createTab(name, isDefault)
+	local Page = Instance.new("ScrollingFrame")
+	Page.Size = UDim2.new(1, 0, 1, 0)
+	Page.BackgroundColor3 = Color3.fromRGB(25, 20, 30)
+	Page.BorderSizePixel = 0
+	Page.ScrollBarThickness = 4
+	Page.ScrollBarImageColor3 = Color3.fromRGB(168, 85, 247)
+	Page.Visible = isDefault or false
+	Page.Parent = PagesContainer
+	
+	local ContentStroke = Instance.new("UIStroke")
+	ContentStroke.Color = Color3.fromRGB(60, 50, 70)
+	ContentStroke.Thickness = 1
+	ContentStroke.Parent = Page
+
+	local ContentCorner = Instance.new("UICorner")
+	ContentCorner.CornerRadius = UDim.new(0, 6)
+	ContentCorner.Parent = Page
+	
+	pages[name] = Page
+
+	local TabBtn = Instance.new("TextButton")
+	TabBtn.Size = UDim2.new(0, 100, 1, 0)
+	TabBtn.BackgroundColor3 = isDefault and Color3.fromRGB(45, 30, 60) or Color3.fromRGB(30, 25, 35)
+	TabBtn.Text = name
+	TabBtn.TextColor3 = isDefault and Color3.fromRGB(200, 150, 255) or Color3.fromRGB(150, 140, 160)
+	TabBtn.Font = Enum.Font.GothamSemibold
+	TabBtn.TextSize = 14
+	TabBtn.Parent = TabsContainer
+	
+	local Stroke = Instance.new("UIStroke")
+	Stroke.Color = isDefault and Color3.fromRGB(168, 85, 247) or Color3.fromRGB(60, 50, 70)
+	Stroke.Thickness = 1
+	Stroke.Parent = TabBtn
+	
+	local Corner = Instance.new("UICorner")
+	Corner.CornerRadius = UDim.new(0, 4)
+	Corner.Parent = TabBtn
+
+	TabBtn.MouseButton1Click:Connect(function()
+		for _, p in pairs(pages) do p.Visible = false end
+		for _, t in pairs(TabsContainer:GetChildren()) do 
+			if t:IsA("TextButton") then 
+				t.BackgroundColor3 = Color3.fromRGB(30, 25, 35)
+				t.TextColor3 = Color3.fromRGB(150, 140, 160)
+				t:FindFirstChildOfClass("UIStroke").Color = Color3.fromRGB(60, 50, 70)
+			end 
+		end
+		Page.Visible = true
+		TabBtn.BackgroundColor3 = Color3.fromRGB(45, 30, 60)
+		TabBtn.TextColor3 = Color3.fromRGB(200, 150, 255)
+		Stroke.Color = Color3.fromRGB(168, 85, 247)
+	end)
+
+	return Page
+end
+
+local AimbotPage = createTab("Aimbot", true)
+local VisuaisPage = createTab("Visuais", false)
+
+local function addLayout(page)
+	local layout = Instance.new("UIListLayout")
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.Padding = UDim.new(0, 12)
+	layout.Parent = page
+	
+	local padding = Instance.new("UIPadding")
+	padding.PaddingTop = UDim.new(0, 15)
+	padding.PaddingLeft = UDim.new(0, 20)
+	padding.PaddingRight = UDim.new(0, 20)
+	padding.Parent = page
+end
+addLayout(AimbotPage)
+addLayout(VisuaisPage)
+
+-- =============================================================================
+-- FUNÇÕES DE CRIAÇÃO DA INTERFACE
+-- =============================================================================
+
+local function createToggle(parentPage, labeltext, defaultState, callback)
+	local Row = Instance.new("Frame")
+	Row.Size = UDim2.new(1, 0, 0, 35)
+	Row.BackgroundTransparency = 1
+	Row.Parent = parentPage
+
+	local TextLabel = Instance.new("TextLabel")
+	TextLabel.Size = UDim2.new(0, 240, 1, 0)
+	TextLabel.BackgroundTransparency = 1
+	TextLabel.Text = labeltext
+	TextLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
+	TextLabel.Font = Enum.Font.Gotham
+	TextLabel.TextSize = 14
+	TextLabel.TextXAlignment = Enum.TextXAlignment.Left
+	TextLabel.Parent = Row
+
+	local ToggleBtn = Instance.new("TextButton")
+	ToggleBtn.Size = UDim2.new(0, 45, 0, 22)
+	ToggleBtn.Position = UDim2.new(0, 260, 0, 6)
+	ToggleBtn.BackgroundColor3 = defaultState and Color3.fromRGB(168, 85, 247) or Color3.fromRGB(50, 40, 60)
+	ToggleBtn.Text = ""
+	ToggleBtn.Parent = Row
+	Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(1, 0)
+
+	local Ball = Instance.new("Frame")
+	Ball.Size = UDim2.new(0, 16, 0, 16)
+	Ball.Position = defaultState and UDim2.new(1, -20, 0, 3) or UDim2.new(0, 4, 0, 3)
+	Ball.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	Ball.Parent = ToggleBtn
+	Instance.new("UICorner", Ball).CornerRadius = UDim.new(1, 0)
+
+	local state = defaultState
+	ToggleBtn.MouseButton1Click:Connect(function()
+		state = not state
+		if state then
+			ToggleBtn.BackgroundColor3 = Color3.fromRGB(168, 85, 247)
+			Ball:TweenPosition(UDim2.new(1, -20, 0, 3), "Out", "Quad", 0.12, true)
+		else
+			ToggleBtn.BackgroundColor3 = Color3.fromRGB(50, 40, 60)
+			Ball:TweenPosition(UDim2.new(0, 4, 0, 3), "Out", "Quad", 0.12, true)
+		end
+		if callback then callback(state) end
+	end)
+end
+
+local function createSlider(parentPage, labeltext, min, max, default, callback)
+	local Row = Instance.new("Frame")
+	Row.Size = UDim2.new(1, 0, 0, 45)
+	Row.BackgroundTransparency = 1
+	Row.Parent = parentPage
+
+	local TextLabel = Instance.new("TextLabel")
+	TextLabel.Size = UDim2.new(0, 240, 0, 20)
+	TextLabel.BackgroundTransparency = 1
+	TextLabel.Text = labeltext
+	TextLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+	TextLabel.Font = Enum.Font.Gotham
+	TextLabel.TextSize = 13
+	TextLabel.TextXAlignment = Enum.TextXAlignment.Left
+	TextLabel.Parent = Row
+
+	local SliderFrame = Instance.new("TextButton")
+	SliderFrame.Size = UDim2.new(0, 250, 0, 6)
+	SliderFrame.Position = UDim2.new(0, 260, 0, 22)
+	SliderFrame.BackgroundColor3 = Color3.fromRGB(45, 35, 55)
+	SliderFrame.Text = ""
+	SliderFrame.Parent = Row
+	Instance.new("UICorner", SliderFrame).CornerRadius = UDim.new(1, 0)
+
+	local Fill = Instance.new("Frame")
+	Fill.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
+	Fill.BackgroundColor3 = Color3.fromRGB(168, 85, 247)
+	Fill.BorderSizePixel = 0
+	Fill.Parent = SliderFrame
+	Instance.new("UICorner", Fill).CornerRadius = UDim.new(1, 0)
+
+	local ValueLabel = Instance.new("TextLabel")
+	ValueLabel.Size = UDim2.new(0, 50, 0, 20)
+	ValueLabel.Position = UDim2.new(0, 520, 0, 15)
+	ValueLabel.BackgroundTransparency = 1
+	ValueLabel.Text = tostring(default)
+	ValueLabel.TextColor3 = Color3.fromRGB(168, 85, 247)
+	ValueLabel.Font = Enum.Font.GothamBold
+	ValueLabel.TextSize = 13
+	ValueLabel.Parent = Row
+
+	local snap = false
+	local function update()
+		local mousePos = UserInputService:GetMouseLocation().X
+		local startPos = SliderFrame.AbsolutePosition.X
+		local width = SliderFrame.AbsoluteSize.X
+		local percentage = math.clamp((mousePos - startPos) / width, 0, 1)
+		local value = math.floor(min + (max - min) * percentage)
+		
+		Fill.Size = UDim2.new(percentage, 0, 1, 0)
+		ValueLabel.Text = tostring(value)
+		callback(value)
+	end
+
+	SliderFrame.MouseButton1Down:Connect(function() snap = true; update() end)
+	UserInputService.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then snap = false end
+	end)
+	RunService.RenderStepped:Connect(function() if snap then update() end end)
+end
+
+-- =============================================================================
+-- ABA: AIMBOT
+-- =============================================================================
+
+createToggle(AimbotPage, "Ativar Aimbot", false, function(state) 
+	CheatSettings.AimbotEnabled = state 
+	print("Aimbot:", state)
+end)
+
+createToggle(AimbotPage, "Ativar FOV", false, function(state) 
+	CheatSettings.FovEnabled = state 
+	print("FOV:", state)
+end)
+
+createToggle(AimbotPage, "Team Check (Ignorar Aliados)", false, function(state) 
+	CheatSettings.TeamCheck = state 
+end)
+
+createToggle(AimbotPage, "Wall Check (Ignorar Atrás de Paredes)", false, function(state) 
+	CheatSettings.WallCheck = state 
+end)
+
+createSlider(AimbotPage, "Raio do FOV", 30, 300, 100, function(val) 
+	CheatSettings.FovRadius = val 
+end)
+
+createSlider(AimbotPage, "Suavidade (Smoothness)", 5, 20, 10, function(val) 
+	CheatSettings.Smoothness = val 
+	print("Suavidade:", val)
+end)
+
+-- WHITELIST
+local WhitelistTitle = Instance.new("TextLabel")
+WhitelistTitle.Size = UDim2.new(1, 0, 0, 25)
+WhitelistTitle.BackgroundTransparency = 1
+WhitelistTitle.Text = "Whitelist de Jogadores (Marque para IGNORAR):"
+WhitelistTitle.TextColor3 = Color3.fromRGB(168, 85, 247)
+WhitelistTitle.Font = Enum.Font.GothamBold
+WhitelistTitle.TextSize = 13
+WhitelistTitle.TextXAlignment = Enum.TextXAlignment.Left
+WhitelistTitle.Parent = AimbotPage
+
+local WhitelistFrame = Instance.new("Frame")
+WhitelistFrame.Size = UDim2.new(1, 0, 0, 110)
+WhitelistFrame.BackgroundColor3 = Color3.fromRGB(18, 14, 22)
+WhitelistFrame.Parent = AimbotPage
+Instance.new("UICorner", WhitelistFrame).CornerRadius = UDim.new(0, 4)
+
+local WhitelistScroll = Instance.new("ScrollingFrame")
+WhitelistScroll.Size = UDim2.new(1, -10, 1, -10)
+WhitelistScroll.Position = UDim2.new(0, 5, 0, 5)
+WhitelistScroll.BackgroundTransparency = 1
+WhitelistScroll.ScrollBarThickness = 3
+WhitelistScroll.ScrollBarImageColor3 = Color3.fromRGB(168, 85, 247)
+WhitelistScroll.Parent = WhitelistFrame
+
+local WLList = Instance.new("UIListLayout")
+WLList.Padding = UDim.new(0, 5)
+WLList.Parent = WhitelistScroll
+
+local function updateWhitelistUI()
+	for _, item in pairs(WhitelistScroll:GetChildren()) do 
+		if item:IsA("Frame") then item:Destroy() end 
+	end
+	for _, player in pairs(Players:GetPlayers()) do
+		if player ~= LocalPlayer then
+			local ItemRow = Instance.new("Frame")
+			ItemRow.Size = UDim2.new(1, -5, 0, 25)
+			ItemRow.BackgroundTransparency = 1
+			ItemRow.Parent = WhitelistScroll
+			
+			local NameLbl = Instance.new("TextLabel")
+			NameLbl.Size = UDim2.new(0, 200, 1, 0)
+			NameLbl.BackgroundTransparency = 1
+			NameLbl.Text = player.Name
+			NameLbl.TextColor3 = Color3.fromRGB(180, 180, 180)
+			NameLbl.Font = Enum.Font.Gotham
+			NameLbl.TextSize = 13
+			NameLbl.TextXAlignment = Enum.TextXAlignment.Left
+			NameLbl.Parent = ItemRow
+			
+			local Checkbox = Instance.new("TextButton")
+			Checkbox.Size = UDim2.new(0, 18, 0, 18)
+			Checkbox.Position = UDim2.new(1, -25, 0, 3)
+			Checkbox.BackgroundColor3 = CheatSettings.Whitelist[player.UserId] and Color3.fromRGB(168, 85, 247) or Color3.fromRGB(40, 30, 50)
+			Checkbox.Text = CheatSettings.Whitelist[player.UserId] and "✓" or ""
+			Checkbox.TextColor3 = Color3.fromRGB(255, 255, 255)
+			Checkbox.Font = Enum.Font.GothamBold
+			Checkbox.TextSize = 12
+			Checkbox.Parent = ItemRow
+			Instance.new("UICorner", Checkbox).CornerRadius = UDim.new(0, 3)
+			
+			Checkbox.MouseButton1Click:Connect(function()
+				if CheatSettings.Whitelist[player.UserId] then
+					CheatSettings.Whitelist[player.UserId] = nil
+					Checkbox.BackgroundColor3 = Color3.fromRGB(40, 30, 50)
+					Checkbox.Text = ""
+				else
+					CheatSettings.Whitelist[player.UserId] = true
+					Checkbox.BackgroundColor3 = Color3.fromRGB(168, 85, 247)
+					Checkbox.Text = "✓"
+				end
+			end)
+		end
+	end
+end
+
+Players.PlayerAdded:Connect(updateWhitelistUI)
+Players.PlayerRemoving:Connect(updateWhitelistUI)
+updateWhitelistUI()
+
+-- =============================================================================
+-- ABA: VISUAIS (SEM HIGHLIGHT ESP)
+-- =============================================================================
+
+createToggle(VisuaisPage, "ESP 2D Box", true, function(state) 
+	CheatSettings.ESPBox = state 
+end)
+
+createToggle(VisuaisPage, "ESP Nome", true, function(state) 
+	CheatSettings.ESPName = state 
+end)
+
+createToggle(VisuaisPage, "ESP Distância", true, function(state) 
+	CheatSettings.ESPDistance = state 
+end)
+
+-- Textos Informativos
+local InfoLabel = Instance.new("TextLabel")
+InfoLabel.Size = UDim2.new(1, 0, 0, 30)
+InfoLabel.Position = UDim2.new(0, 0, 0, 130)
+InfoLabel.BackgroundTransparency = 1
+InfoLabel.Text = "ESP 2D Box: Vermelho para Inimigos | Verde para Aliados"
+InfoLabel.TextColor3 = Color3.fromRGB(150, 140, 160)
+InfoLabel.Font = Enum.Font.GothamItalic
+InfoLabel.TextSize = 12
+InfoLabel.TextXAlignment = Enum.TextXAlignment.Left
+InfoLabel.Parent = VisuaisPage
+
+local InfoLabel2 = Instance.new("TextLabel")
+InfoLabel2.Size = UDim2.new(1, 0, 0, 30)
+InfoLabel2.Position = UDim2.new(0, 0, 0, 155)
+InfoLabel2.BackgroundTransparency = 1
+InfoLabel2.Text = "Nome: Abaixo dos pés | Distância: Acima da cabeça"
+InfoLabel2.TextColor3 = Color3.fromRGB(150, 140, 160)
+InfoLabel2.Font = Enum.Font.GothamItalic
+InfoLabel2.TextSize = 12
+InfoLabel2.TextXAlignment = Enum.TextXAlignment.Left
+InfoLabel2.Parent = VisuaisPage
+
+-- =============================================================================
+-- SISTEMA DE ESP 2D
+-- =============================================================================
+local ESPObjects = {}
+
+local function CreateESPObject(player)
+	if player == LocalPlayer then return end
+	
+	local espData = {
+		Box = Drawing.new("Square"),
+		Name = Drawing.new("Text"),
+		Distance = Drawing.new("Text")
+	}
+	
+	espData.Box.Color = Color3.fromRGB(168, 85, 247)
+	espData.Box.Thickness = 1.5
+	espData.Box.Filled = false
+	espData.Box.Transparency = 0.8
+	espData.Box.Visible = false
+	
+	espData.Name.Color = Color3.fromRGB(255, 255, 255)
+	espData.Name.Size = 13
+	espData.Name.Font = 2
+	espData.Name.Center = true
+	espData.Name.Outline = true
+	espData.Name.OutlineColor = Color3.fromRGB(0, 0, 0)
+	espData.Name.Visible = false
+	
+	espData.Distance.Color = Color3.fromRGB(255, 255, 255)
+	espData.Distance.Size = 11
+	espData.Distance.Font = 2
+	espData.Distance.Center = true
+	espData.Distance.Outline = true
+	espData.Distance.OutlineColor = Color3.fromRGB(0, 0, 0)
+	espData.Distance.Visible = false
+	
+	ESPObjects[player] = espData
+end
+
+local function UpdateESP()
+	for player, espData in pairs(ESPObjects) do
+		if not player or not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") or 
+		   not player.Character:FindFirstChild("Head") or not player.Character:FindFirstChildOfClass("Humanoid") or
+		   player.Character:FindFirstChildOfClass("Humanoid").Health <= 0 then
+			espData.Box.Visible = false
+			espData.Name.Visible = false
+			espData.Distance.Visible = false
+			continue
+		end
+		
+		local rootPart = player.Character.HumanoidRootPart
+		local headPart = player.Character.Head
+		
+		local rootPos, rootOnScreen = Camera:WorldToViewportPoint(rootPart.Position)
+		local headPos, headOnScreen = Camera:WorldToViewportPoint(headPart.Position)
+		
+		if not rootOnScreen or not headOnScreen then
+			espData.Box.Visible = false
+			espData.Name.Visible = false
+			espData.Distance.Visible = false
+			continue
+		end
+		
+		local distance = (Camera.CFrame.Position - rootPart.Position).Magnitude
+		local footPos = rootPart.Position - Vector3.new(0, 2.5, 0)
+		local footScreen = Camera:WorldToViewportPoint(footPos)
+		local headScreen = Camera:WorldToViewportPoint(headPart.Position + Vector3.new(0, 0.5, 0))
+		
+		local height = math.abs(headScreen.Y - footScreen.Y) + 10
+		local width = height * 0.5
+		
+		local boxX = rootPos.X - width/2
+		local boxY = headScreen.Y - 5
+		
+		-- Box 2D
+		if CheatSettings.ESPBox then
+			espData.Box.Visible = true
+			espData.Box.Size = Vector2.new(width, height)
+			espData.Box.Position = Vector2.new(boxX, boxY)
+			
+			if player.Team and LocalPlayer.Team and player.Team == LocalPlayer.Team then
+				espData.Box.Color = Color3.fromRGB(0, 255, 0)
+			else
+				espData.Box.Color = Color3.fromRGB(255, 0, 0)
+			end
+		else
+			espData.Box.Visible = false
+		end
+		
+		-- Nome
+		if CheatSettings.ESPName then
+			espData.Name.Visible = true
+			espData.Name.Position = Vector2.new(rootPos.X, footScreen.Y + 15)
+			espData.Name.Text = player.Name
+		else
+			espData.Name.Visible = false
+		end
+		
+		-- Distância
+		if CheatSettings.ESPDistance then
+			espData.Distance.Visible = true
+			espData.Distance.Position = Vector2.new(rootPos.X, headScreen.Y - 20)
+			espData.Distance.Text = string.format("%.1f m", distance)
+		else
+			espData.Distance.Visible = false
+		end
+	end
+end
+
+Players.PlayerAdded:Connect(function(player)
+	task.spawn(function()
+		CreateESPObject(player)
+		player.CharacterAdded:Connect(function()
+			task.wait(0.1)
+			if ESPObjects[player] then
+				ESPObjects[player].Box.Visible = false
+				ESPObjects[player].Name.Visible = false
+				ESPObjects[player].Distance.Visible = false
+			end
+		end)
+	end)
+end)
+
+for _, player in pairs(Players:GetPlayers()) do
+	if player ~= LocalPlayer then task.spawn(CreateESPObject, player) end
+end
+
+RunService.RenderStepped:Connect(UpdateESP)
+
+-- =============================================================================
+-- ABRIR/FECHAR
+-- =============================================================================
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if input.KeyCode == Enum.KeyCode.RightControl then
+		CheatSettings.MenuVisible = not CheatSettings.MenuVisible
+		MainFrame.Visible = CheatSettings.MenuVisible
+	end
+end)
+
+-- =============================================================================
+-- WALLCHECK
+-- =============================================================================
+local function IsVisible(targetCharacter)
+	if not targetCharacter or not targetCharacter:FindFirstChild("Head") then return false end
+	local origin = Camera.CFrame.Position
+	local destination = targetCharacter.Head.Position
+	local direction = destination - origin
+	
+	local raycastParams = RaycastParams.new()
+	raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+	raycastParams.FilterDescendantsInstances = {LocalPlayer.Character, targetCharacter, Camera}
+	raycastParams.IgnoreWater = true
+	
+	local raycastResult = workspace:Raycast(origin, direction, raycastParams)
+	return raycastResult == nil
+end
+
+-- =============================================================================
+-- AIMBOT
+-- =============================================================================
+local FOVCircle = Drawing.new("Circle")
+FOVCircle.Color = Color3.fromRGB(168, 85, 247)
+FOVCircle.Thickness = 1.5
+FOVCircle.Filled = false
+FOVCircle.Transparency = 0.8
+
+local function GetClosestPlayerToCursor()
+	local closestPlayer = nil
+	local shortestDistance = math.huge
+
+	for _, player in pairs(Players:GetPlayers()) do
+		if player ~= LocalPlayer and not CheatSettings.Whitelist[player.UserId] then
+			if CheatSettings.TeamCheck and player.Team == LocalPlayer.Team then continue end
+			
+			local char = player.Character
+			if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChildOfClass("Humanoid") and char:FindFirstChildOfClass("Humanoid").Health > 0 then
+				if CheatSettings.WallCheck and not IsVisible(char) then continue end
+				
+				local pos, onScreen = Camera:WorldToViewportPoint(char.HumanoidRootPart.Position)
+				if onScreen then
+					local mouseLocation = UserInputService:GetMouseLocation()
+					local magnitude = (Vector2.new(pos.X, pos.Y) - mouseLocation).Magnitude
+					
+					if CheatSettings.FovEnabled then
+						if magnitude < CheatSettings.FovRadius and magnitude < shortestDistance then
+							shortestDistance = magnitude
+							closestPlayer = player
+						end
+					else
+						if magnitude < shortestDistance then
+							shortestDistance = magnitude
+							closestPlayer = player
+						end
+					end
+				end
+			end
+		end
+	end
+	return closestPlayer
+end
+
+local function DoAimbot()
+	if not CheatSettings.AimbotEnabled then return end
+	
+	local target = GetClosestPlayerToCursor()
+	if target and target.Character and target.Character:FindFirstChild("Head") then
+		local targetHeadPos = Camera:WorldToViewportPoint(target.Character.Head.Position)
+		local mousePos = UserInputService:GetMouseLocation()
+		
+		local targetCoords = Vector2.new(targetHeadPos.X, targetHeadPos.Y)
+		local smoothMove = (targetCoords - mousePos) / CheatSettings.Smoothness
+		
+		mousemoverel(smoothMove.X, smoothMove.Y)
+	end
+end
+
+-- Aimbot quando o botão direito está PRESSIONADO
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if gameProcessed then return end
+	
+	if input.UserInputType == Enum.UserInputType.MouseButton2 then
+		isAiming = true
+		
+		if aimbotConnection then
+			aimbotConnection:Disconnect()
+		end
+		
+		aimbotConnection = RunService.RenderStepped:Connect(function()
+			if isAiming and CheatSettings.AimbotEnabled then
+				DoAimbot()
+			end
+		end)
+	end
+end)
+
+-- Para o aimbot quando o botão direito é SOLTO
+UserInputService.InputEnded:Connect(function(input, gameProcessed)
+	if input.UserInputType == Enum.UserInputType.MouseButton2 then
+		isAiming = false
+		
+		if aimbotConnection then
+			aimbotConnection:Disconnect()
+			aimbotConnection = nil
+		end
+	end
+end)
+
+-- Desenho do FOV Circle
+RunService.RenderStepped:Connect(function()
+	if CheatSettings.MenuVisible and CheatSettings.FovEnabled and CheatSettings.AimbotEnabled then
+		FOVCircle.Position = UserInputService:GetMouseLocation()
+		FOVCircle.Radius = CheatSettings.FovRadius
+		FOVCircle.Visible = true
+	else
+		FOVCircle.Visible = false
+	end
+end)
+
+-- =============================================================================
+-- RODAPÉ
+-- =============================================================================
+local Footer = Instance.new("Frame")
+Footer.Size = UDim2.new(1, 0, 0, 30)
+Footer.Position = UDim2.new(0, 0, 1, -30)
+Footer.BackgroundColor3 = Color3.fromRGB(15, 12, 18)
+Footer.BorderSizePixel = 0
+Footer.Parent = MainFrame
+
+local FooterText = Instance.new("TextLabel")
+FooterText.Size = UDim2.new(1, -20, 1, 0)
+FooterText.Position = UDim2.new(0, 15, 0, 0)
+FooterText.BackgroundTransparency = 1
+FooterText.Text = "Status: Conectado | ESP 2D | Suavidade: 5-20"
+FooterText.TextColor3 = Color3.fromRGB(150, 140, 160)
+FooterText.Font = Enum.Font.SourceSans
+FooterText.TextSize = 14
+FooterText.TextXAlignment = Enum.TextXAlignment.Left
+FooterText.Parent = Footer
