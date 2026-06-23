@@ -1,5 +1,5 @@
-# FRH-MENU-FREE -- =============================================================================
--- PAINEL FRH MENU - VERSÃO COMPLETA (SEM HIGHLIGHT ESP)
+-- =============================================================================
+-- PAINEL FRH MENU - VERSÃO COMPLETA (AIMBOT COM SUAVIDADE 5-20)
 -- =============================================================================
 
 local Players = game:GetService("Players")
@@ -14,13 +14,14 @@ local CheatSettings = {
 	AimbotEnabled = false,
 	FovEnabled = false,
 	FovRadius = 100,
-	Smoothness = 10,
+	Smoothness = 10, -- Valor padrão 10 (meio do caminho entre 5 e 20)
 	TeamCheck = false,
 	WallCheck = false,
 	Whitelist = {},
 	ESPBox = true,
 	ESPName = true,
-	ESPDistance = true
+	ESPDistance = true,
+	BoxESP = false
 }
 
 -- Variáveis para controle do Aimbot
@@ -297,6 +298,7 @@ createSlider(AimbotPage, "Raio do FOV", 30, 300, 100, function(val)
 	CheatSettings.FovRadius = val 
 end)
 
+-- Slider da Suavidade ajustado para 5-20
 createSlider(AimbotPage, "Suavidade (Smoothness)", 5, 20, 10, function(val) 
 	CheatSettings.Smoothness = val 
 	print("Suavidade:", val)
@@ -383,7 +385,7 @@ Players.PlayerRemoving:Connect(updateWhitelistUI)
 updateWhitelistUI()
 
 -- =============================================================================
--- ABA: VISUAIS (SEM HIGHLIGHT ESP)
+-- ABA: VISUAIS
 -- =============================================================================
 
 createToggle(VisuaisPage, "ESP 2D Box", true, function(state) 
@@ -398,28 +400,9 @@ createToggle(VisuaisPage, "ESP Distância", true, function(state)
 	CheatSettings.ESPDistance = state 
 end)
 
--- Textos Informativos
-local InfoLabel = Instance.new("TextLabel")
-InfoLabel.Size = UDim2.new(1, 0, 0, 30)
-InfoLabel.Position = UDim2.new(0, 0, 0, 130)
-InfoLabel.BackgroundTransparency = 1
-InfoLabel.Text = "ESP 2D Box: Vermelho para Inimigos | Verde para Aliados"
-InfoLabel.TextColor3 = Color3.fromRGB(150, 140, 160)
-InfoLabel.Font = Enum.Font.GothamItalic
-InfoLabel.TextSize = 12
-InfoLabel.TextXAlignment = Enum.TextXAlignment.Left
-InfoLabel.Parent = VisuaisPage
-
-local InfoLabel2 = Instance.new("TextLabel")
-InfoLabel2.Size = UDim2.new(1, 0, 0, 30)
-InfoLabel2.Position = UDim2.new(0, 0, 0, 155)
-InfoLabel2.BackgroundTransparency = 1
-InfoLabel2.Text = "Nome: Abaixo dos pés | Distância: Acima da cabeça"
-InfoLabel2.TextColor3 = Color3.fromRGB(150, 140, 160)
-InfoLabel2.Font = Enum.Font.GothamItalic
-InfoLabel2.TextSize = 12
-InfoLabel2.TextXAlignment = Enum.TextXAlignment.Left
-InfoLabel2.Parent = VisuaisPage
+createToggle(VisuaisPage, "Highlight ESP (Inimigos)", false, function(state) 
+	CheatSettings.BoxESP = state 
+end)
 
 -- =============================================================================
 -- SISTEMA DE ESP 2D
@@ -551,6 +534,65 @@ end
 RunService.RenderStepped:Connect(UpdateESP)
 
 -- =============================================================================
+-- SISTEMA DE HIGHLIGHT ESP
+-- =============================================================================
+local function ApplyHighlightESP(player)
+	if player == LocalPlayer then return end
+
+	local function onCharacterAdded(character)
+		local humanoidRootPart = character:WaitForChild("HumanoidRootPart", 5)
+		local humanoid = character:WaitForChild("Humanoid", 5)
+		if not humanoidRootPart or not humanoid then return end
+
+		local existingEsp = character:FindFirstChild("VisualESP")
+		if existingEsp then existingEsp:Destroy() end
+
+		local HighlightFrame = Instance.new("Highlight")
+		HighlightFrame.Name = "VisualESP"
+		
+		HighlightFrame.FillTransparency = 1        
+		HighlightFrame.OutlineColor = Color3.fromRGB(168, 85, 247) 
+		HighlightFrame.OutlineTransparency = 0     
+		HighlightFrame.Adornee = character
+		
+		if CheatSettings.BoxESP and (player.Team ~= LocalPlayer.Team or player.Team == nil) then
+			HighlightFrame.Enabled = true
+		else
+			HighlightFrame.Enabled = false
+		end
+		
+		HighlightFrame.Parent = character
+
+		local connection
+		connection = humanoid.Died:Connect(function()
+			if HighlightFrame then HighlightFrame:Destroy() end
+			if connection then connection:Disconnect() end
+		end)
+	end
+
+	if player.Character then task.spawn(onCharacterAdded, player.Character) end
+	player.CharacterAdded:Connect(function(char) task.spawn(onCharacterAdded, char) end)
+end
+
+Players.PlayerAdded:Connect(ApplyHighlightESP)
+for _, p in pairs(Players:GetPlayers()) do task.spawn(ApplyHighlightESP, p) end
+
+RunService.Heartbeat:Connect(function()
+	for _, p in pairs(Players:GetPlayers()) do
+		if p.Character and p ~= LocalPlayer then
+			local esp = p.Character:FindFirstChild("VisualESP")
+			if esp then
+				if CheatSettings.BoxESP and (p.Team ~= LocalPlayer.Team or p.Team == nil) then
+					esp.Enabled = true
+				else
+					esp.Enabled = false
+				end
+			end
+		end
+	end
+end)
+
+-- =============================================================================
 -- ABRIR/FECHAR
 -- =============================================================================
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
@@ -579,7 +621,7 @@ local function IsVisible(targetCharacter)
 end
 
 -- =============================================================================
--- AIMBOT
+-- AIMBOT (SUAVIDADE 5-20)
 -- =============================================================================
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Color = Color3.fromRGB(168, 85, 247)
@@ -622,6 +664,7 @@ local function GetClosestPlayerToCursor()
 	return closestPlayer
 end
 
+-- Função para executar o aimbot com suavidade ajustável (5-20)
 local function DoAimbot()
 	if not CheatSettings.AimbotEnabled then return end
 	
@@ -631,19 +674,23 @@ local function DoAimbot()
 		local mousePos = UserInputService:GetMouseLocation()
 		
 		local targetCoords = Vector2.new(targetHeadPos.X, targetHeadPos.Y)
+		
+		-- Suavidade: quanto maior o número, mais suave (lento)
+		-- 5 = rápido, 20 = muito suave
 		local smoothMove = (targetCoords - mousePos) / CheatSettings.Smoothness
 		
 		mousemoverel(smoothMove.X, smoothMove.Y)
 	end
 end
 
--- Aimbot quando o botão direito está PRESSIONADO
+-- Aimbot quando o botão direito está PRESSIONADO (segurando)
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	if gameProcessed then return end
 	
 	if input.UserInputType == Enum.UserInputType.MouseButton2 then
 		isAiming = true
 		
+		-- Cria uma conexão para atualizar a mira enquanto o botão está pressionado
 		if aimbotConnection then
 			aimbotConnection:Disconnect()
 		end
@@ -693,7 +740,7 @@ local FooterText = Instance.new("TextLabel")
 FooterText.Size = UDim2.new(1, -20, 1, 0)
 FooterText.Position = UDim2.new(0, 15, 0, 0)
 FooterText.BackgroundTransparency = 1
-FooterText.Text = "Status: Conectado | ESP 2D | Suavidade: 5-20"
+FooterText.Text = "Status: Conectado | Suavidade: 5-20 | Segure Botão Direito"
 FooterText.TextColor3 = Color3.fromRGB(150, 140, 160)
 FooterText.Font = Enum.Font.SourceSans
 FooterText.TextSize = 14
